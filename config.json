@@ -1,0 +1,18 @@
+{
+  "site_url": "https://www.fmvidafortinolmos.com.ar/notix/",
+  "site_name": "FM Vida 92.5",
+  "site_domain": "fmvidafortinolmos.com.ar",
+  "location": "FORTÍN OLMOS · SANTA FE",
+  "default_category": "NOTICIAS",
+  "tagline": "INFORMACIÓN CON IDENTIDAD LOCAL",
+  "hashtags": [
+    "#FMVida925",
+    "#FortínOlmos",
+    "#Noticias",
+    "#NorteSantafesino"
+  ],
+  "check_limit": 20,
+  "max_posts_per_run": 3,
+  "first_run_initializes_only": true
+}
+
