@@ -430,7 +430,7 @@ def publish(dry_run: bool = False) -> int:
     branch = os.environ.get("GITHUB_REF_NAME", "main")
     ig_user_id = os.environ.get("IG_USER_ID", "")
     access_token = os.environ.get("IG_ACCESS_TOKEN", "")
-    api_version = os.environ.get("META_API_VERSION", "v25.0")
+    api_version = os.environ.get("META_API_VERSION", "v26.0")
 
     if not dry_run and (not repository or not ig_user_id or not access_token):
         raise RuntimeError("Faltan GITHUB_REPOSITORY, IG_USER_ID o IG_ACCESS_TOKEN")
