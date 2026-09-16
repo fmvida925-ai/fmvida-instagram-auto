@@ -1,4 +1,4 @@
-name: Publicar noticias en Instagram
+name: .github/workflows/publicar-instagram.yml
 
 on:
   schedule:
