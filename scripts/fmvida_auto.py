@@ -351,7 +351,7 @@ def build_caption(article: Article, config: dict) -> str:
     return (
         f"📰 {article.title}\n\n"
         f"{summary}\n\n"
-        f"🌐 f"🌐 Leé la noticia completa:\n{article.url}\n\n"
+        f"🌐 Leé la noticia completa:\n{article.url}\n\n"
         f"{hashtags}"
     ).strip()
 
