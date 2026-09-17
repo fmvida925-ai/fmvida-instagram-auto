@@ -63,10 +63,20 @@ def write_json(path: Path, value) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def fetch(url: str, timeout: int = 35) -> requests.Response:
-    response = SESSION.get(url, timeout=timeout)
-    response.raise_for_status()
-    return response
+def fetch(url: str, timeout: int = 45) -> requests.Response:
+    last_error = None
+    for attempt in range(3):
+        try:
+            response = SESSION.get(url, timeout=timeout)
+            response.raise_for_status()
+            return response
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt < 2:
+                wait_seconds = 10 * (attempt + 1)
+                print(f"Servidor demorado. Nuevo intento en {wait_seconds} segundos...")
+                time.sleep(wait_seconds)
+    raise RuntimeError(f"No se pudo acceder a {url} después de 3 intentos: {last_error}")
 
 
 def clean_text(value: str) -> str:
