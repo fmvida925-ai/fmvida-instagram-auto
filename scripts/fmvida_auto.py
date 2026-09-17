@@ -77,7 +77,7 @@ def fetch(url: str, timeout: int = 45) -> requests.Response:
                 print(f"Servidor demorado. Nuevo intento en {wait_seconds} segundos...")
                 time.sleep(wait_seconds)
     print("Acceso directo no disponible. Probando pasarela alternativa...")
-    proxy_url = "https://api.allorigins.win/raw?url=" + requests.utils.quote(url, safe="")
+    proxy_url = "https://fmvida-puente.fmvida92-5.workers.dev/?url=" + requests.utils.quote(url, safe="")
     response = SESSION.get(proxy_url, timeout=90)
     response.raise_for_status()
     return response
