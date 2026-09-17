@@ -76,7 +76,11 @@ def fetch(url: str, timeout: int = 45) -> requests.Response:
                 wait_seconds = 10 * (attempt + 1)
                 print(f"Servidor demorado. Nuevo intento en {wait_seconds} segundos...")
                 time.sleep(wait_seconds)
-    raise RuntimeError(f"No se pudo acceder a {url} después de 3 intentos: {last_error}")
+    print("Acceso directo no disponible. Probando pasarela alternativa...")
+    proxy_url = "https://api.allorigins.win/raw?url=" + requests.utils.quote(url, safe="")
+    response = SESSION.get(proxy_url, timeout=90)
+    response.raise_for_status()
+    return response
 
 
 def clean_text(value: str) -> str:
