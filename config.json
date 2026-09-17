@@ -12,7 +12,7 @@
     "#NorteSantafesino"
   ],
   "check_limit": 20,
-  "max_posts_per_run": 3,
+  "max_posts_per_run": 1,
   "first_run_initializes_only": true
 }
 
