@@ -349,8 +349,14 @@ def generate_card(article: Article, config: dict, destination: Path) -> None:
         draw.text((54, y), line, font=title_font, fill="#1f2529")
         y += line_height
 
-    summary_font = load_font(27)
-    summary_lines = wrap_text(draw, article.summary, summary_font, 972)[:2]
+    # La placa tiene espacio para dos líneas. Un resumen variable podía quedar
+    # cortado a mitad de una oración, por eso mostramos un llamado a la acción
+    # completo y dejamos el enlace exacto de la noticia en la descripción.
+    summary_font = load_font(27, bold=True)
+    summary_lines = [
+        "Leé la noticia completa en nuestra página web.",
+        "Encontrá el enlace en el texto de esta publicación.",
+    ]
     sy = 1150
     for line in summary_lines:
         draw.text((54, sy), line, font=summary_font, fill="#596064")
