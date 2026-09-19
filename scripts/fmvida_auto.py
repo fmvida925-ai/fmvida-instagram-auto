@@ -76,11 +76,20 @@ def fetch(url: str, timeout: int = 45) -> requests.Response:
                 wait_seconds = 10 * (attempt + 1)
                 print(f"Servidor demorado. Nuevo intento en {wait_seconds} segundos...")
                 time.sleep(wait_seconds)
+
     print("Acceso directo no disponible. Probando pasarela alternativa...")
-    proxy_url = "https://fmvida-puente.fmvida92-5.workers.dev/?url=" + requests.utils.quote(url, safe="")
-    response = SESSION.get(proxy_url, timeout=90)
-    response.raise_for_status()
-    return response
+    proxy_url = (
+        "https://fmvida-puente.fmvida92-5.workers.dev/?url="
+        + requests.utils.quote(url, safe="")
+    )
+    try:
+        response = SESSION.get(proxy_url, timeout=90)
+        response.raise_for_status()
+        return response
+    except requests.RequestException as exc:
+        raise RuntimeError(
+            f"No se pudo acceder a {url} directamente ni mediante la pasarela: {exc}"
+        ) from last_error
 
 
 def clean_text(value: str) -> str:
@@ -434,6 +443,50 @@ def meta_post(path: str, data: dict, api_version: str) -> dict:
     return payload
 
 
+def wait_for_media_container(
+    container_id: str,
+    access_token: str,
+    api_version: str,
+    attempts: int = 18,
+) -> None:
+    """Espera a que Meta termine de procesar la imagen antes de publicarla."""
+    url = f"https://graph.facebook.com/{api_version}/{container_id}"
+    for attempt in range(attempts):
+        response = SESSION.get(
+            url,
+            params={
+                "fields": "status_code",
+                "access_token": access_token,
+            },
+            timeout=30,
+        )
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {"raw": response.text[:500]}
+
+        if not response.ok or "error" in payload:
+            raise RuntimeError(
+                f"No se pudo consultar el procesamiento de Meta ({response.status_code}): {payload}"
+            )
+
+        status_code = str(payload.get("status_code", "")).upper()
+        if status_code == "FINISHED":
+            print("Imagen procesada por Meta y lista para publicar.")
+            return
+        if status_code in {"ERROR", "EXPIRED"}:
+            raise RuntimeError(f"Meta no pudo procesar la imagen: {payload}")
+
+        wait_seconds = min(5 + attempt * 2, 15)
+        print(
+            f"Meta todavía está procesando la imagen "
+            f"({status_code or 'IN_PROGRESS'}). Nuevo intento en {wait_seconds} segundos..."
+        )
+        time.sleep(wait_seconds)
+
+    raise RuntimeError("Meta no terminó de procesar la imagen dentro del tiempo esperado")
+
+
 def publish(dry_run: bool = False) -> int:
     queue = read_json(QUEUE_PATH, [])
     if not queue:
@@ -465,6 +518,7 @@ def publish(dry_run: bool = False) -> int:
             {"image_url": raw_url, "caption": item["caption"], "access_token": access_token},
             api_version,
         )
+        wait_for_media_container(container["id"], access_token, api_version)
         result = meta_post(
             f"{ig_user_id}/media_publish",
             {"creation_id": container["id"], "access_token": access_token},
