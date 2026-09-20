@@ -99,6 +99,33 @@ def clean_text(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def complete_synopsis(value: str, max_chars: int = 650) -> str:
+    """Devuelve una sinopsis breve sin cortar una oración por la mitad."""
+    text = clean_text(value)
+    if not text:
+        return "Toda la información en nuestro portal de noticias."
+
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    selected: list[str] = []
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        candidate = " ".join(selected + [sentence])
+        if selected and len(candidate) > max_chars:
+            break
+        selected.append(sentence)
+        if len(candidate) >= max_chars:
+            break
+
+    synopsis = " ".join(selected).strip()
+    if not synopsis:
+        synopsis = text
+    if synopsis[-1] not in ".!?":
+        synopsis = synopsis.rstrip(" ,;:-") + "."
+    return synopsis
+
+
 def response_html(response: requests.Response) -> str:
     try:
         return response.content.decode("utf-8")
@@ -166,22 +193,25 @@ def parse_article(url: str, fallback_title: str, default_category: str) -> Artic
         title = clean_text(h1.get_text(" ") if h1 else fallback_title)
     title = normalize_title(title)
 
-    summary = meta_content(
+    meta_summary = meta_content(
         soup,
         'meta[property="og:description"]',
         'meta[name="description"]',
         'meta[name="twitter:description"]',
     )
-    if not summary:
-        paragraphs = []
-        for selector in ("article p", ".noticia p", ".contenido p", ".detalle p", ".post p", "p"):
-            for node in soup.select(selector):
-                text = clean_text(node.get_text(" "))
-                if len(text) >= 45 and text not in paragraphs:
-                    paragraphs.append(text)
-            if paragraphs:
-                break
-        summary = paragraphs[0] if paragraphs else "Toda la información en nuestro portal de noticias."
+    paragraphs = []
+    for selector in ("article p", ".noticia p", ".contenido p", ".detalle p", ".post p", "p"):
+        for node in soup.select(selector):
+            text = clean_text(node.get_text(" "))
+            if len(text) >= 45 and text != title and text not in paragraphs:
+                paragraphs.append(text)
+        if paragraphs:
+            break
+
+    # Prioriza el texto real de la noticia. La descripción SEO queda como
+    # alternativa cuando el artículo no utiliza párrafos HTML reconocibles.
+    synopsis_source = " ".join(paragraphs[:3]) if paragraphs else meta_summary
+    summary = complete_synopsis(synopsis_source)
 
     image_url = meta_content(soup, 'meta[property="og:image"]', 'meta[name="twitter:image"]')
     if image_url:
@@ -373,9 +403,7 @@ def generate_card(article: Article, config: dict, destination: Path) -> None:
 
 
 def build_caption(article: Article, config: dict) -> str:
-    summary = clean_text(article.summary)
-    if len(summary) > 420:
-        summary = summary[:417].rsplit(" ", 1)[0] + "…"
+    summary = complete_synopsis(article.summary)
     hashtags = " ".join(config.get("hashtags", []))
     return (
         f"📰 {article.title}\n\n"
