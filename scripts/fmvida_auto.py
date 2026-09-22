@@ -521,6 +521,47 @@ def wait_for_media_container(
     raise RuntimeError("Meta no terminó de procesar la imagen dentro del tiempo esperado")
 
 
+def publish_media_container(
+    ig_user_id: str,
+    container_id: str,
+    access_token: str,
+    api_version: str,
+    attempts: int = 8,
+) -> dict:
+    """Publica el contenedor y reintenta si Meta aún no lo propagó internamente."""
+    path = f"{ig_user_id}/media_publish"
+    url = f"https://graph.facebook.com/{api_version}/{path}"
+    data = {"creation_id": container_id, "access_token": access_token}
+
+    for attempt in range(attempts):
+        response = SESSION.post(url, data=data, timeout=60)
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {"raw": response.text[:500]}
+
+        if response.ok and "error" not in payload:
+            return payload
+
+        error = payload.get("error", {}) if isinstance(payload, dict) else {}
+        error_code = error.get("code")
+        error_subcode = error.get("error_subcode")
+        media_not_ready = error_code == 9007 or error_subcode == 2207027
+
+        if media_not_ready and attempt < attempts - 1:
+            wait_seconds = min(10 + attempt * 5, 30)
+            print(
+                "Meta todavía no habilitó el contenido para publicarlo. "
+                f"Nuevo intento en {wait_seconds} segundos..."
+            )
+            time.sleep(wait_seconds)
+            continue
+
+        raise RuntimeError(f"Error de Meta API ({response.status_code}): {payload}")
+
+    raise RuntimeError("Meta no habilitó el contenido para publicarlo dentro del tiempo esperado")
+
+
 def publish(dry_run: bool = False) -> int:
     queue = read_json(QUEUE_PATH, [])
     if not queue:
@@ -553,9 +594,10 @@ def publish(dry_run: bool = False) -> int:
             api_version,
         )
         wait_for_media_container(container["id"], access_token, api_version)
-        result = meta_post(
-            f"{ig_user_id}/media_publish",
-            {"creation_id": container["id"], "access_token": access_token},
+        result = publish_media_container(
+            ig_user_id,
+            container["id"],
+            access_token,
             api_version,
         )
         print(f"Publicado en Instagram: {item['title']} (media {result.get('id')})")
